@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const employeeController=require('../../controllers/employee');
-const fileUpload=require('../../middlewares/fileupload')
+const fileUpload=require('../../middlewares/fileupload');
+const employeeModel = require('../../models/models');
 
 router.post("/login",employeeController.login);
 router.post("/forgot/checkUser",employeeController.checkUser);
@@ -34,4 +35,7 @@ router.get('/roleslevel/:id',employeeController.getRoleHeirarchy);
 router.post("/admin/vendor/:id", employeeController.addVendorByAdmin);
 router.get("/admin/employeesList/:id", employeeController.getEmployeesByAdmin);
 router.get("/admin/vendorList/:id", employeeController.getVendorsByAdmin);
+router.post('/addProduct/:id',employeeController.addProductByAdmin);
+router.get('/products',employeeController.getProducts);
+router.post('/cart',employeeController.addTocart)
 module.exports = router;

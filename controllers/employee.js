@@ -1134,9 +1134,9 @@ let employeeController = {
             if (!admin) {
                 throw { errorCode: "VALID_ERROR", message: "Admin not found" };
             }
-              return res.status(200).json({
+            return res.status(200).json({
                 message: "Got eomployee details successfully",
-                data:admin
+                data: admin
             })
         } catch (error) {
             if (error.errorCode === 'VALID_ERROR') {
@@ -1150,19 +1150,19 @@ let employeeController = {
             }
         }
     },
-    getVendorsByAdmin:async(req,res)=>{
+    getVendorsByAdmin: async (req, res) => {
         try {
-            let {id}=req.params;   
-            let admin=await employeeModel.getAdminVendor(id);
-              if (!admin) {
+            let { id } = req.params;
+            let admin = await employeeModel.getAdminVendor(id);
+            if (!admin) {
                 throw { errorCode: "VALID_ERROR", message: "Admin not found" };
             }
-              return res.status(200).json({
+            return res.status(200).json({
                 message: "Got vendors details successfully",
-                data:admin
+                data: admin
             })
         } catch (error) {
-              if (error.errorCode === 'VALID_ERROR') {
+            if (error.errorCode === 'VALID_ERROR') {
                 return res.status(422).json({
                     message: error.message
                 })
@@ -1172,6 +1172,142 @@ let employeeController = {
                 })
             }
         }
-    } 
+    },
+    addProductByAdmin: async (req, res) => {
+        const schema = Joi.object({
+            name: Joi.string().required(),
+            price: Joi.number().required(),
+            description: Joi.string().min(5).required(),
+            category: Joi.string().required(),
+        });
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+
+        let allErrors = [];
+
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+        }
+        try {
+            let { id } = req.params;
+            const admin = await employeeModel.getAdminData(id);
+            if (admin.length === 0) {
+                throw { error: "VALID_ERROR", message: "Admin not found" }
+            }
+            let { name, price, description, category } = req.body;
+            const product = {
+                admin_id: id,
+                name: name,
+                price: price,
+                description: description,
+                category,
+                created_at: moment().format()
+            }
+            let productData = await employeeModel.addProduct(product);
+            console.log(productData);
+
+            return res.status(201).json({ message: "Product added", data: productData });
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+
+    },
+    getProducts: async (req, res) => {
+        try {
+            const products = await employeeModel.getProducts();
+            res.status(200).json({
+                message: "got details successfully",
+                data: products
+            })
+        } catch (error) {
+            return res.status(409).json({
+                error: error.message
+            })
+        }
+    },
+    addTocart: async (req, res) => {
+        const schema = Joi.object({
+            employee_id: Joi.number().required(),
+            product_id: Joi.number().required(),
+            quantity: Joi.number().required()
+        })
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let allErrors = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+        }
+        try {
+            const { employee_id, product_id, quantity } = req.body;
+            // const quantity = req.body.quantity || 1;
+            const product = await employeeModel.getProductById(product_id);
+            if (product.length === 0) {
+                throw { error: "VALID_ERROR", message: "product not found" };
+            }
+            const emp = await employeeModel.getEmployeeById(employee_id);
+            if (emp.length === 0) {
+                throw { error: "VALID_ERROR", message: "Employee not found" };
+            }
+            const itemPrice = product[0].price;
+            const totalPrice = itemPrice * quantity
+            const existing = await employeeModel.findCartItem(employee_id, product_id);
+            if (existing.length > 0) {
+                const quant = existing[0].quantity + req.body.quantity;
+                const total_price = quant * itemPrice;
+                let payLoad = {
+                    employee_id,
+                    product_id,
+                    quantity: quant,
+                    total_price: total_price
+                }
+                await employeeModel.updateQuantity(payLoad);
+            } else {
+                const payLoad = {
+                    employee_id,
+                    product_id,
+                    quantity,
+                    admin_id: emp[0].admin_id,
+                    status: "cart",
+                    price: itemPrice,
+                    total_price: totalPrice,
+                    created_at: moment().format()
+                }
+                await employeeModel.addToQuantity(payLoad);
+            }
+
+            return res.status(201).json({ message: "Added to cart" });
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    }
 }
 module.exports = employeeController;

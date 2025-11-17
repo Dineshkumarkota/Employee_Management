@@ -1,4 +1,5 @@
 let db = require("../config/mysqldb");
+const { addProduct } = require("../controllers/employee");
 let employeeModel = {
   getByEmail: async (email, trx = null) => {
     const knex = trx || db;
@@ -326,7 +327,7 @@ let employeeModel = {
     let knex = trx != null ? trx : db;
     try {
       const result = knex("employees");
-      result.select('file_url', 'employee_id', 'name', "email", "phone", "address", "remaining_leaves", "leaves_taken", 'checks_upload', 'role_id','admin_id')
+      result.select('file_url', 'employee_id', 'name', "email", "phone", "address", "remaining_leaves", "leaves_taken", 'checks_upload', 'role_id', 'admin_id')
       result.where("employee_id", id);
       result.limit(1);
       return await result
@@ -346,7 +347,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -362,7 +363,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -376,7 +377,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -391,7 +392,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -405,7 +406,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -420,7 +421,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -435,7 +436,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -450,7 +451,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -465,7 +466,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
   },
@@ -479,7 +480,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
   },
@@ -492,7 +493,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -506,7 +507,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -521,7 +522,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
@@ -536,7 +537,7 @@ let employeeModel = {
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       }
     }
   },
@@ -544,43 +545,139 @@ let employeeModel = {
     let knex = trx != null ? trx : db;
     try {
       const result = knex('roles')
-      result.select('role_id',"role_name")
+      result.select('role_id', "role_name")
       result.where('role_id', ">", currentLevel)
       result.orderBy('role_id', "asc")
       return await result;
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       };
     }
 
   },
-  getAdminByid:async (id, trx = null) => {
+  getAdminByid: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       const result = knex('employees')
-      result.select("employee_id",'name','email','role','login_id')
+      result.select("employee_id", 'name', 'email', 'role', 'login_id')
       result.where('admin_id', id)
       return await result;
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message,
       }
     }
   },
- getAdminVendor:async (id, trx = null) => {
+  getAdminVendor: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       const result = knex('vendors')
-      result.select("employee_id",'vendor_name','email','organisation_name')
+      result.select("employee_id", 'vendor_name', 'email', 'organisation_name')
       result.where('admin_id', id)
       return await result;
     } catch (error) {
       throw {
         errorCode: "DB_ERROR",
-        message: "Error occurred while executing",
+        message: error.message
+      }
+    }
+  },
+  addProduct: async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      const result = knex('products')
+      result.insert(data);
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getProducts: async (trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('products')
+      result.select('product_id', 'name', 'price');
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getAdminData: async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('admin')
+      result.select('name')
+      result.where('admin_id', id)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getProductById: async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('products')
+      result.where('product_id', id)
+      result.limit(1);
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  findCartItem: async (employee_id, product_id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('orders')
+      result.where({ employee_id, product_id, status: "cart" })
+      result.limit(1);
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  updateQuantity: async (payLoad, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+         const { employee_id, product_id, quantity, total_price } = payLoad;
+      let result = knex('orders')
+      result.where({ employee_id, product_id, status: "cart" })
+      result.update({ quantity,total_price })
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  addToQuantity: async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('orders')
+      result.insert(data);
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
       }
     }
   }
