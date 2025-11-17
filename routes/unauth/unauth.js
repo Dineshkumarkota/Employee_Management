@@ -30,5 +30,8 @@ router.post("/admin/leave/:leave_id/reject", employeeController.rejectLeave);
 router.post("/vendor/add", employeeController.addVendor);
 router.get("/vendor/list/:id", employeeController.getVendorById);
 router.get('/vendors',employeeController.getAllVendors);
-router.get('/roleslevel/:id',employeeController.getRoleHeirarchy)
+router.get('/roleslevel/:id',employeeController.getRoleHeirarchy);
+router.post("/admin/vendor/:id", employeeController.addVendorByAdmin);
+router.get("/admin/employeesList/:id", employeeController.getEmployeesByAdmin);
+router.get("/admin/vendorList/:id", employeeController.getVendorsByAdmin);
 module.exports = router;

@@ -1023,7 +1023,7 @@ let employeeController = {
                 throw { errorCode: "VALID_ERROR", message: "Employee not found" };
             }
             const currentRole = emp[0].role_id;
-            console.log(currentRole);
+            // console.log(currentRole);
 
             const higherRoles = await employeeModel.getHigherRoles(currentRole);
 
@@ -1058,6 +1058,120 @@ let employeeController = {
                 })
             }
         }
-    }
+    },
+    addVendorByAdmin: async (req, res) => {
+        const schema = Joi.object({
+            employee_id: Joi.number().required(),
+            vendor_name: Joi.string().required(),
+            organisation_name: Joi.string().required(),
+            location: Joi.string().required(),
+            mobile: Joi.string().min(5).max(20).required(),
+            email: Joi.string().email().required()
+        })
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let allErrors = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+        }
+        try {
+            const { employee_id, vendor_name, organisation_name, location, mobile, email } = req.body;
+            const { id } = req.params;
+            const emp = await employeeModel.getEmployeeById(req.body.employee_id);
+            if (emp.length === 0) {
+                throw { errorCode: "VALID_ERROR", message: "Employee not found" };
+            }
+            const admin = await employeeModel.getAdminByid(id);
+            if (!admin) {
+                throw { errorCode: "VALID_ERROR", message: "Admin not found" };
+            }
+            const existingEmail = await employeeModel.getVendorEmail(email);
+            if (existingEmail.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Vendor with the same email already exists" }
+            }
+            const existingNum = await employeeModel.getVendorNumber(mobile);
+            if (existingNum.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Vendor with the same number already exists" }
+            }
+            const payLoad = {
+                employee_id,
+                admin_id: id,
+                vendor_name,
+                organisation_name,
+                location,
+                mobile,
+                email,
+                created_at: moment().format()
+            }
+            // console.log(payLoad);
+            await employeeModel.updateVendor(payLoad);
+            return res.status(200).json({
+                message: "Vendor added successfully",
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    getEmployeesByAdmin: async (req, res) => {
+        try {
+            let { id } = req.params;
+            const admin = await employeeModel.getAdminByid(id);
+            if (!admin) {
+                throw { errorCode: "VALID_ERROR", message: "Admin not found" };
+            }
+              return res.status(200).json({
+                message: "Got eomployee details successfully",
+                data:admin
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    getVendorsByAdmin:async(req,res)=>{
+        try {
+            let {id}=req.params;   
+            let admin=await employeeModel.getAdminVendor(id);
+              if (!admin) {
+                throw { errorCode: "VALID_ERROR", message: "Admin not found" };
+            }
+              return res.status(200).json({
+                message: "Got vendors details successfully",
+                data:admin
+            })
+        } catch (error) {
+              if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    } 
 }
 module.exports = employeeController;

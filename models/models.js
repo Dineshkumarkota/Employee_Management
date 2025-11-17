@@ -326,7 +326,7 @@ let employeeModel = {
     let knex = trx != null ? trx : db;
     try {
       const result = knex("employees");
-      result.select('file_url', 'employee_id', 'name', "email", "phone", "address", "remaining_leaves", "leaves_taken", 'checks_upload', 'role_id')
+      result.select('file_url', 'employee_id', 'name', "email", "phone", "address", "remaining_leaves", "leaves_taken", 'checks_upload', 'role_id','admin_id')
       result.where("employee_id", id);
       result.limit(1);
       return await result
@@ -555,6 +555,34 @@ let employeeModel = {
       };
     }
 
+  },
+  getAdminByid:async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      const result = knex('employees')
+      result.select("employee_id",'name','email','role','login_id')
+      result.where('admin_id', id)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: "Error occurred while executing",
+      }
+    }
+  },
+ getAdminVendor:async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      const result = knex('vendors')
+      result.select("employee_id",'vendor_name','email','organisation_name')
+      result.where('admin_id', id)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: "Error occurred while executing",
+      }
+    }
   }
 
 };
