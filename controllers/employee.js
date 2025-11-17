@@ -3,74 +3,133 @@ const bcrypt = require("bcrypt");
 const employeeModel = require('../models/models');
 const moment = require("moment");
 const fileValidate = require('../utils/fileValidate')
-const { copyFile, deleteFile } = require('../utils/copyFile')
+const { copyFile, deleteFile } = require('../utils/copyFile');
+const e = require('express');
 
 
 let employeeController = {
     postEmployee: async (req, res) => {
-        if (req.body) {
-            const updateSchema = Joi.object({
-                name: Joi.string().min(1).max(100).optional(),
-                email: Joi.string().email().optional(),
-                phone: Joi.string().min(5).max(20).optional(),
-                address: Joi.string().max(255).optional(),
-                salary: Joi.number().min(0).optional(),
-                joining_date: Joi.date().optional(),
-                login_id: Joi.string().min(4).max(50).optional(),
-                password: Joi.string()
-                    .min(6)
-                    .max(13)
-                    .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!#.%*?&])[A-Za-z\d@$!#.%*?&]+$/)
-                    .optional(),
-                location: Joi.string().min(2).max(100).optional(),
-                role: Joi.string().min(2).max(100).optional(),
-                designation: Joi.string().min(2).max(100).optional(),
-                sales_target: Joi.number().min(0).optional(),
-                TA: Joi.number().min(0).optional(),
-                DA: Joi.number().min(0).optional(),
-                previous_experience: Joi.number().min(0).optional(),
-            });
 
-            const { error } = updateSchema.validate(req.body, { abortEarly: false });
-            //validation.
-            if (error) {
-                const errorDetails = error.details.map((err) => err.message);
-                return res.status(400).json({ message: errorDetails });
-            } else {
+        const updateSchema = Joi.object({
+            name: Joi.string().min(1).max(100).optional(),
+            email: Joi.string().email().optional(),
+            phone: Joi.string().min(5).max(20).optional(),
+            address: Joi.string().max(255).optional(),
+            salary: Joi.number().min(0).optional(),
+            joining_date: Joi.date().optional(),
+            login_id: Joi.string().min(4).max(50).optional(),
+            password: Joi.string()
+                .min(6)
+                .max(13)
+                .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!#.%*?&])[A-Za-z\d@$!#.%*?&]+$/)
+                .optional(),
+            location: Joi.string().min(2).max(100).optional(),
+            role: Joi.string().min(2).max(100).optional(),
+            designation: Joi.string().min(2).max(100).optional(),
+            sales_target: Joi.number().min(0).optional(),
+            TA: Joi.number().min(0).optional(),
+            DA: Joi.number().min(0).optional(),
+            previous_experience: Joi.number().min(0).required(),
+            alternate_number: Joi.string().min(5).max(20).required(),
+            pan_number: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).required(),
+            blood_group: Joi.string().min(2).max(100).required(),
+            PF: Joi.number().min(0).optional()
+        });
+        let validate = updateSchema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
 
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+        }
+
+
+        let allErrors = [];
+        if (req.file) {
+            const filevalidation = fileValidate(req.file, [".jpg", ".jpeg", ".png", ".webp"], 2);
+            if (!filevalidation.valid) {
+                allErrors.push({ field: "image", message: filevalidation.message });
+            }
+        }
+
+        if (allErrors.length > 0) {
+            return res.status(422).json({ message: allErrors });
+        }
+        try {
+
+
+            const existingEmail = await employeeModel.getByEmail(req.body.email);
+            if (existingEmail.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Email already exists." };
+            }
+
+            // Check if login_id already exists
+            const existingLogin = await employeeModel.getByLoginId(req.body.login_id);
+
+            if (existingLogin.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Login ID already exists." };
+            }
+            if ((req.body.phone) === req.body.alternate_number) {
+                throw { error: 'VALID_ERROR', message: "Alternate mobile number should be different from original number" }
+            }
+            const existingPan = await employeeModel.checkPan(req.body.pan_number);
+
+            if (existingPan.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Pan already exists" }
+            }
+            const hashedPassword = await bcrypt.hash(req.body.password, 10);
+            if (req.file) {
                 try {
-                    const existingEmail = await employeeModel.getByEmail(req.body.email);
-                    if (existingEmail) {
-                        throw { status: 400, message: "Email already exists." };
-                    }
 
-                    // Check if login_id already exists
-                    const existingLogin = await employeeModel.getByLoginId(req.body.login_id);
-                    if (existingLogin) {
-                        throw { status: 400, message: "Login ID already exists." };
-                    }
-                    const hashedPassword = await bcrypt.hash(req.body.password, 10);
+                    const destFolder = "check";
 
-                    const newEmployee = {
-                        ...req.body,
-                        password: hashedPassword
-                    }
-                    const id = await employeeModel.postEmployeeById(newEmployee);
-                    // console.log(id);
 
-                    res.status(201).json({
-                        message: "Employee created successfully",
-                        employee_id: id[0]
-                    });
+                    await copyFile(req.file, destFolder);
+                    await deleteFile(req.file.path);
 
-                } catch (error) {
-                    if (error.status) {
-                        return res.status(error.status).json({ message: error.message });
-                    }
+
+                } catch (fileErr) {
+                    console.error("File operation failed:", fileErr);
+                    return res.status(500).json({ message: "File handling failed", error: fileErr.message || fileErr });
                 }
             }
-        } else {
-            return res.status(400).json({ message: "Invalid Data." });
+            const checkUploadName = req.file.filename;
+            console.log(checkUploadName);
+
+            const newEmployee = {
+                ...req.body,
+                checks_upload: checkUploadName,
+                password: hashedPassword
+            }
+
+            const inserted = await employeeModel.postEmployeeById(newEmployee);
+            let employee_id = inserted[0];
+            console.log(employee_id);
+
+
+
+            // console.log(id);
+
+            res.status(201).json({
+                message: "Employee created successfully",
+                employee_id
+            });
+
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
         }
 
     },
@@ -783,7 +842,7 @@ let employeeController = {
             const { leave_id } = req.params;
             const { admin_message } = req.body;
             const leave = await employeeModel.getLeaveById(leave_id);
-            if (leave.length===0) {
+            if (leave.length === 0) {
                 throw { errorCode: "VALID_ERROR", message: "Leave request not found" }
             }
             if (leave[0].status != "Pending") {
@@ -862,6 +921,132 @@ let employeeController = {
             });
             return res.status(200).json({ message: "Leave Rejected", data: { leave_id } });
 
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    addVendor: async (req, res) => {
+        const schema = Joi.object({
+            employee_id: Joi.number().required(),
+            vendor_name: Joi.string().required(),
+            organisation_name: Joi.string().required(),
+            location: Joi.string().required(),
+            mobile: Joi.string().min(5).max(20).required(),
+            email: Joi.string().email().required()
+        })
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+
+        let allErrors = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+        }
+        try {
+            const { employee_id, vendor_name, organisation_name, location, mobile, email } = req.body;
+            const existingEmail = await employeeModel.getVendorEmail(email);
+            if (existingEmail.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Vendor with the same email already exists" }
+            }
+            const existingNum = await employeeModel.getVendorNumber(mobile);
+            if (existingNum.length > 0) {
+                throw { error: 'VALID_ERROR', message: "Vendor with the same number already exists" }
+            }
+            const payLoad = {
+                employee_id,
+                vendor_name,
+                organisation_name,
+                location,
+                mobile,
+                email,
+                created_at: moment().format()
+            }
+            await employeeModel.updateVendor(payLoad);
+            return res.status(200).json({
+                message: "Vendor added successfully",
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+
+    },
+    getVendorById: async (req, res) => {
+        try {
+            let { id } = req.params;
+            const vendors = await employeeModel.getVendorsByEmpId(id);
+            return res.status(200).json({
+                id,
+                vendors
+            })
+        } catch (error) {
+            return res.status(404).json({ message: "Not found" });
+        }
+    },
+    getAllVendors: async (req, res) => {
+        try {
+            const vendors = await employeeModel.getVendors();
+            return res.status(200).json({
+                message: "got all vendors",
+                data: vendors
+            })
+        } catch (error) {
+            return res.status(404).json({ message: "Not found" });
+        }
+    },
+    getRoleHeirarchy: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const emp = await employeeModel.getEmployeeById(id);
+            if (emp.length === 0) {
+                throw { errorCode: "VALID_ERROR", message: "Employee not found" };
+            }
+            const currentRole = emp[0].role_id;
+            console.log(currentRole);
+
+            const higherRoles = await employeeModel.getHigherRoles(currentRole);
+
+            let manager = null;
+            for (let role of higherRoles) {
+                const employees = await employeeModel.getEmployeeRoleLevel(role.role_id);
+                if (employees.length > 0) {
+                    manager = employees[0];
+                    manager.role_name = role.role_name;
+                    break;
+                }
+            }
+            if (!manager) {
+                return res.status(200).json({
+                    message: "No higher-level manager available",
+                    reports_to: null
+                });
+            }
+            return res.status(200).json({
+                employee_id: id,
+                current_role_level: currentRole,
+                reeportsTo: manager
+            });
         } catch (error) {
             if (error.errorCode === 'VALID_ERROR') {
                 return res.status(422).json({

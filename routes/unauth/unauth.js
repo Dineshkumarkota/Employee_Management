@@ -3,7 +3,7 @@ const router = express.Router();
 const employeeController=require('../../controllers/employee');
 const fileUpload=require('../../middlewares/fileupload')
 
-router.post("/login", employeeController.login);
+router.post("/login",employeeController.login);
 router.post("/forgot/checkUser",employeeController.checkUser);
 router.post('/forgot/check-answers',employeeController.checkAnswers);
 router.put('/password/reset-password',employeeController.resetPassword);
@@ -27,4 +27,8 @@ router.post("/attendance/:id/logout", employeeController.markLogout);
 router.post("/employee/:id/leave", employeeController.applyLeave);
 router.post("/admin/leave/:leave_id/approve", employeeController.approveLeave);
 router.post("/admin/leave/:leave_id/reject", employeeController.rejectLeave);
+router.post("/vendor/add", employeeController.addVendor);
+router.get("/vendor/list/:id", employeeController.getVendorById);
+router.get('/vendors',employeeController.getAllVendors);
+router.get('/roleslevel/:id',employeeController.getRoleHeirarchy)
 module.exports = router;
