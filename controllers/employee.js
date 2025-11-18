@@ -1308,6 +1308,145 @@ let employeeController = {
                 })
             }
         }
+    },
+    addCategory: async (req, res) => {
+        const schema = Joi.object({
+            title_name: Joi.string().min(5).max(20).required(),
+            category: Joi.string().min(5).max(20).valid('Minerals', 'Medicines').required(),
+        })
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let errorDetails = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: errorDetails })
+        }
+        else {
+            try {
+                let { id } = req.params;
+                let { title_name, category } = req.body;
+                let management = await employeeModel.getManagementById(id);
+                if (management.length === 0) {
+                    throw { error: "ERROR_CODE", message: "management not found" }
+                }
+                let payLoad = {
+                    management_id: id,
+                    title_name,
+                    category
+                }
+                let inserted = await employeeModel.createCategoryItem(payLoad);
+                return res.status(201).json({
+                    message: "Category item created successfully",
+                    id: inserted[0]
+                });
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    getCategoryNameById: async (req, res) => {
+        try {
+            let { id } = req.params;
+            const category = await employeeModel.getCategoryById(id);
+            if (category.length === 0) {
+                throw { error: "VALID_ERROR", message: "category not found" }
+            }
+            return res.status(200).json({
+                message: "Got categories successfully",
+                data: category
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    addAdmin: async (req, res) => {
+        const schema = Joi.object({
+            management_id: Joi.number().required(),
+            name: Joi.string().min(5).max(10).required(),
+            company_name: Joi.string().min(5).max(20).required(),
+            address: Joi.string().min(5).max(20).required(),
+            shipping_address: Joi.string().min(5).max(20).required(),
+            team_name: Joi.string().min(5).max(20).required(),
+            product_category: Joi.string().min(5).max(20).required(),
+            GST: Joi.string()
+                .min(15)
+                .max(15)
+                .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/)
+                .required()
+        })
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let errorDetails = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            errorDetails = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: errorDetails })
+        } else {
+            try {
+                let { id } = req.params;
+                let { name, product_category, company_name, address, shipping_address, team_name, GST } = req.body;
+                let management = await employeeModel.getManagementById(id);
+                if (management.length === 0) {
+                    throw { error: "VALID_ERROR", message: "management not found" }
+                }
+                let existingGst = await employeeModel.checkgst(GST);
+                if (existingGst.length > 0) {
+                    throw { error: "VALID_ERROR", message: "Gst number already exists" }
+                }
+                let payLoad = {
+                    management_id: id,
+                    name,
+                    product_category,
+                    company_name,
+                    address,
+                    shipping_address,
+                    team_name,
+                    GST
+                }
+                let inserted = await employeeModel.createAdmin(payLoad);
+                return res.status(201).json({
+                    message: "Category item created successfully",
+                    id: inserted[0]
+                });
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
     }
 }
 module.exports = employeeController;

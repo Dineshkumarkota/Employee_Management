@@ -26,16 +26,9 @@ router.put(
 router.post("/attendance/:id/login", employeeController.markLogin);
 router.post("/attendance/:id/logout", employeeController.markLogout);
 router.post("/employee/:id/leave", employeeController.applyLeave);
-router.post("/admin/leave/:leave_id/approve", employeeController.approveLeave);
-router.post("/admin/leave/:leave_id/reject", employeeController.rejectLeave);
 router.post("/vendor/add", employeeController.addVendor);
 router.get("/vendor/list/:id", employeeController.getVendorById);
 router.get('/vendors',employeeController.getAllVendors);
 router.get('/roleslevel/:id',employeeController.getRoleHeirarchy);
-router.post("/admin/vendor/:id", employeeController.addVendorByAdmin);
-router.get("/admin/employeesList/:id", employeeController.getEmployeesByAdmin);
-router.get("/admin/vendorList/:id", employeeController.getVendorsByAdmin);
-router.post('/addProduct/:id',employeeController.addProductByAdmin);
-router.get('/products',employeeController.getProducts);
-router.post('/cart',employeeController.addTocart)
+
 module.exports = router;

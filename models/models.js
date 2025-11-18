@@ -680,7 +680,74 @@ let employeeModel = {
         message: error.message
       }
     }
+  },
+  getManagementById:async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('management')
+      result.where('management_id',id)
+      result.limit(1)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  createCategoryItem:async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('categories')
+      result.insert(data)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getCategoryById:async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('categories')
+      result.select('id','title_name','category')
+      result.where('management_id',id)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  createAdmin:async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('admin')
+      result.insert(data);
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  checkgst:async (gst, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('admin')
+      result.where("GST",gst)
+      result.limit(1)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
   }
-
 };
 module.exports = employeeModel;
