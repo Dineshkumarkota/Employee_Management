@@ -4,7 +4,7 @@ const employeeModel = require('../models/models');
 const moment = require("moment");
 const fileValidate = require('../utils/fileValidate')
 const { copyFile, deleteFile } = require('../utils/copyFile');
-const e = require('express');
+const express = require('express');
 
 
 let employeeController = {
@@ -1383,18 +1383,18 @@ let employeeController = {
     },
     addAdmin: async (req, res) => {
         const schema = Joi.object({
-            management_id: Joi.number().required(),
             name: Joi.string().min(5).max(10).required(),
-            company_name: Joi.string().min(5).max(20).required(),
-            address: Joi.string().min(5).max(20).required(),
-            shipping_address: Joi.string().min(5).max(20).required(),
-            team_name: Joi.string().min(5).max(20).required(),
+            company_name: Joi.string().min(5).max(50).required(),
+            address: Joi.string().min(5).max(50).required(),
+            shipping_address: Joi.string().min(5).max(50).required(),
+            team_name: Joi.string().min(5).max(50).required(),
             product_category: Joi.string().min(5).max(20).required(),
             GST: Joi.string()
                 .min(15)
                 .max(15)
                 .pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/)
-                .required()
+                .required(),
+            company_size: Joi.string().valid('small', 'medium', 'large').required(),
         })
         let validate = schema.validate(req.body, {
             errors: { wrap: { label: false } },
@@ -1411,7 +1411,7 @@ let employeeController = {
         } else {
             try {
                 let { id } = req.params;
-                let { name, product_category, company_name, address, shipping_address, team_name, GST } = req.body;
+                let { name, product_category, company_name, address, shipping_address, team_name, GST,company_size} = req.body;
                 let management = await employeeModel.getManagementById(id);
                 if (management.length === 0) {
                     throw { error: "VALID_ERROR", message: "management not found" }
@@ -1428,7 +1428,8 @@ let employeeController = {
                     address,
                     shipping_address,
                     team_name,
-                    GST
+                    GST,
+                    company_size
                 }
                 let inserted = await employeeModel.createAdmin(payLoad);
                 return res.status(201).json({
@@ -1445,6 +1446,186 @@ let employeeController = {
                         error: error.message
                     })
                 }
+            }
+        }
+    },
+    addProductsByManagement: async (req, res) => {
+        const schema = Joi.object({
+            name: Joi.string().min(5).max(20).required(),
+            price: Joi.number().positive().required(),
+            description: Joi.string().min(5).max(50).required(),
+            category: Joi.number().positive().required(),
+        })
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+
+        let allErrors = [];
+
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: allErrors })
+        }
+        else {
+            try {
+                let { id } = req.params;
+                let { name, price, description, category } = req.body;
+                const management = await employeeModel.getManagementById(id);
+                if (management.length === 0) {
+                    throw { error: "VALID_ERROR", message: "management not found" }
+                }
+                let payLoad = {
+                    management_id: id,
+                    name,
+                    price,
+                    description,
+                    category
+                }
+                let result = await employeeModel.addProductModel(payLoad);
+                return res.status(200).json({
+                    message: "category added successfully",
+                    data: result
+                })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    getProductByMngId: async (req, res) => {
+        try {
+            let { id } = req.params;
+            const management = await employeeModel.getManagementById(id);
+            if (management.length === 0) {
+                throw { error: "VALID_ERROR", message: "management not found" }
+            }
+            let result = await employeeModel.getProductByMngIdModel(id);
+            return res.status(200).json({
+                data: "get successful",
+                data: result
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    createPackage: async (req, res) => {
+        const schema = Joi.object({
+            category_type: Joi.string().valid('Brand Owner', 'Raw material Supplier').required(),
+            size_type: Joi.string().valid('small', 'medium', 'large').required(),
+            setup_charge: Joi.number().min(0).required(),
+            monthly_basic: Joi.number().min(0).required(),
+            monthly_standard: Joi.number().min(0).required(),
+            monthly_premium: Joi.number().min(0).required(),
+            yearly_basic: Joi.number().min(0).required(),
+            yearly_standard: Joi.number().min(0).required(),
+            yearly_premium: Joi.number().min(0).required(),
+        })
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+
+        let allErrors = [];
+
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: allErrors })
+        }
+        else {
+            try {
+                let { id } = req.params;
+                const management = await employeeModel.getManagementById(id);
+                if (management.length === 0) {
+                    throw { error: "VALID_ERROR", message: "management not found" }
+                }
+                let payLoad = {
+                    management_id: id,
+                    category_type: req.body.category_type,
+                    size_type: req.body.size_type,
+                    setup_charge: req.body.setup_charge,
+                    monthly_basic: req.body.monthly_basic,
+                    monthly_standard: req.body.monthly_standard,
+                    monthly_premium: req.body.monthly_premium,
+                    yearly_basic: req.body.yearly_basic,
+                    yearly_standard: req.body.yearly_standard,
+                    yearly_premium: req.body.yearly_premium
+                }
+                let result = await employeeModel.managementPackageModel(payLoad);
+                return res.status(200).json({
+                    message: "packages added successfully",
+                    data: result
+                })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    getPackages: async (req, res) => {
+        try {
+            const { id } = req.params;
+            let admin =await employeeModel.getpackageByAdmin(id);
+            // console.log('DMIN',admin);
+            
+            if (admin.length === 0) {
+                throw { error: 'VALID_ERROR', message: "admin not found" }
+            }
+            const category = admin[0].team_name;
+            const size = admin[0].company_size;
+
+            const packageData = await employeeModel.getPackageByCategoryAndSize(category, size);
+            if (packageData.length === 0) {
+                throw { error: 'VALID_ERROR', message: "package not found" }
+            }
+
+            return res.status(200).json({
+                message: "Package fetched successfully",
+                category_type: category,
+                size_type: size,
+                package: packageData[0],
+            });
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
             }
         }
     }

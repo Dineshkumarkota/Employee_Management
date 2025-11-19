@@ -12,4 +12,6 @@ router.get("/admin/vendorList/:id", employeeController.getVendorsByAdmin);
 router.post('/addProduct/:id',employeeController.addProductByAdmin);
 router.get('/products',employeeController.getProducts);
 router.post('/cart',employeeController.addTocart);
+router.get("/admin/package/:id", employeeController.getPackages);
+
 module.exports=router;

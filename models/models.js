@@ -748,6 +748,85 @@ let employeeModel = {
         message: error.message
       }
     }
+  },
+  addProductModel:async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('products')
+      result.insert(data)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getProductByMngIdModel:async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('products')
+      result.where('management_id',id)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  managementPackageModel:async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('management_packages')
+      result.insert(data)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getpackageByAdmin:async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('admin')
+      result.select('team_name')
+      result.select('company_size')
+      result.where('id',id)
+      result.limit(1)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  getPackageByCategoryAndSize:async (company,size, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('management_packages')
+      result.select('setup_charge')
+      result.select('monthly_basic')
+      result.select('monthly_standard')
+      result.select('monthly_premium')
+      result.select('yearly_basic')
+      result.select('yearly_standard')
+      result.select('yearly_premium')
+      result.where({
+        size_type:size,
+        category_type:company
+      })
+      result.limit(1)
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
   }
 };
 module.exports = employeeModel;
