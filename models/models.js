@@ -616,7 +616,7 @@ let employeeModel = {
     try {
       let result = knex('admin')
       result.select('name')
-      result.where('admin_id', id)
+      result.where('id', id)
       return await result;
     } catch (error) {
       throw {
@@ -827,6 +827,19 @@ let employeeModel = {
         message: error.message
       }
     }
+  },
+  addProductImage:async(data,trx=null)=>{
+     let knex = trx != null ? trx : db;
+     try {
+      let result=knex('product_images')
+      result.insert(data)
+      return await result;
+     } catch (error) {
+        throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+     }
   }
 };
 module.exports = employeeModel;

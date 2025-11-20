@@ -8,7 +8,11 @@ const employeeModel = require('../../models/models');
 router.post('/management/category/:id',employeeController.addCategory);
 router.get('/management/categoryNames/:id',employeeController.getCategoryNameById);
 router.post('/management/addAdmin/:id',employeeController.addAdmin);
-router.post('/management/addcategory/:id',employeeController.addProductsByManagement);
 router.get('/management/products/:id',employeeController.getProductByMngId);
+router.post(
+    '/management/addcategory/:id',
+    fileUpload.array("images", 3),
+    employeeController.addProductsByManagement
+);
 router.post('/createPackage/:id',employeeController.createPackage)
 module.exports=router;

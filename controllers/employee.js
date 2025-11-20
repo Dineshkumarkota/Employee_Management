@@ -1195,6 +1195,45 @@ let employeeController = {
                 message: err.message
             }));
         }
+        if (!req.files || req.files.lenght === 0) {
+            allErrors.push({
+                field: "images",
+                message: "atlease one image is required"
+            })
+        }
+        else {
+            if (req.files.length > 5) {
+                allErrors.push({
+                    field: "images",
+                    message: "max 5 images are allowed"
+                })
+            }
+        }
+        let totalSize = 0;
+        for (let i = 0; i < req.files.length; i++) {
+            let file = req.files[i];
+            const filevalidation = fileValidate(
+                file,
+                [".jpg", ".jpeg", ".png", ".webp"], 2
+            );
+            totalSize = totalSize + req.files[i].size;
+            if (!filevalidation.valid) {
+                allErrors.push({
+                    field: `images[${i}]`,
+                    message: filevalidation.message
+                });
+            }
+        }
+        if (totalSize > 5 * 1024 * 1024) {
+            allErrors.push({
+                field: `images`,
+                message: "total size should not exist 5MB"
+            });
+        }
+        if (allErrors.length > 0) {
+            return res.status(422).json({ data: allErrors });
+        }
+
         try {
             let { id } = req.params;
             const admin = await employeeModel.getAdminData(id);
@@ -1211,9 +1250,31 @@ let employeeController = {
                 created_at: moment().format()
             }
             let productData = await employeeModel.addProduct(product);
-            console.log(productData);
+            let productId = productData[0];
+            let destFolder = 'products';
 
-            return res.status(201).json({ message: "Product added", data: productData });
+
+            for (let i = 0; i < req.files.length; i++) {
+                const file = req.files[i];
+                await copyFile(file, destFolder)
+
+                    .then(() => { })
+                    .catch(() => {
+                        throw {
+                            errorCode: "API_ERROR",
+                            message: "Error uploading product image",
+                        };
+                    });
+                await deleteFile(file.path);
+                await employeeModel.addProductImage({
+                    product_id: productId,
+                    image_url: file.filename,
+                    mime_type: file.mimetype,
+                    created_at: moment().format()
+                });
+            }
+
+            return res.status(201).json({ message: "Product added", data: productId });
         } catch (error) {
             if (error.errorCode === 'VALID_ERROR') {
                 return res.status(422).json({
@@ -1411,7 +1472,7 @@ let employeeController = {
         } else {
             try {
                 let { id } = req.params;
-                let { name, product_category, company_name, address, shipping_address, team_name, GST,company_size} = req.body;
+                let { name, product_category, company_name, address, shipping_address, team_name, GST, company_size } = req.body;
                 let management = await employeeModel.getManagementById(id);
                 if (management.length === 0) {
                     throw { error: "VALID_ERROR", message: "management not found" }
@@ -1470,7 +1531,44 @@ let employeeController = {
                 field: err.context.key,
                 message: err.message
             }));
-            return res.status(422).json({ data: allErrors })
+        }
+        if (!req.files || req.files.lenght === 0) {
+            allErrors.push({
+                field: "images",
+                message: "atlease one image is required"
+            })
+        }
+        else {
+            if (req.files.length > 5) {
+                allErrors.push({
+                    field: "images",
+                    message: "max 5 images are allowed"
+                })
+            }
+        }
+        let totalSize = 0;
+        for (let i = 0; i < req.files.length; i++) {
+            let file = req.files[i];
+            const filevalidation = fileValidate(
+                file,
+                [".jpg", ".jpeg", ".png", ".webp"], 2
+            );
+            totalSize = totalSize + req.files[i].size;
+            if (!filevalidation.valid) {
+                allErrors.push({
+                    field: `images[${i}]`,
+                    message: filevalidation.message
+                });
+            }
+        }
+        if (totalSize > 5 * 1024 * 1024) {
+            allErrors.push({
+                field: `images`,
+                message: "total size should not exist 5MB"
+            });
+        }
+        if (allErrors.length > 0) {
+            return res.status(422).json({ data: allErrors });
         }
         else {
             try {
@@ -1488,9 +1586,29 @@ let employeeController = {
                     category
                 }
                 let result = await employeeModel.addProductModel(payLoad);
+                let productId = result[0];
+                let destFolder = 'ManagaementProducts';
+                for (let i = 0; i < req.files.length; i++) {
+                    const file = req.files[i];
+                    await copyFile(file, destFolder)
+                        .then(() => { })
+                        .catch(() => {
+                            throw {
+                                errorCode: "API_ERROR",
+                                message: "Error uploading product image",
+                            };
+                        });
+                    await deleteFile(file.path);
+                    await employeeModel.addProductImage({
+                        product_id: productId,
+                        image_url: file.filename,
+                        mime_type: file.mimetype,
+                        created_at: moment().format()
+                    });
+                }
                 return res.status(200).json({
                     message: "category added successfully",
-                    data: result
+                    data: productId
                 })
             } catch (error) {
                 if (error.errorCode === 'VALID_ERROR') {
@@ -1597,9 +1715,9 @@ let employeeController = {
     getPackages: async (req, res) => {
         try {
             const { id } = req.params;
-            let admin =await employeeModel.getpackageByAdmin(id);
+            let admin = await employeeModel.getpackageByAdmin(id);
             // console.log('DMIN',admin);
-            
+
             if (admin.length === 0) {
                 throw { error: 'VALID_ERROR', message: "admin not found" }
             }
