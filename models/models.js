@@ -656,10 +656,10 @@ let employeeModel = {
   updateQuantity: async (payLoad, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
-         const { employee_id, product_id, quantity, total_price } = payLoad;
+      const { employee_id, product_id, quantity, total_price } = payLoad;
       let result = knex('orders')
       result.where({ employee_id, product_id, status: "cart" })
-      result.update({ quantity,total_price })
+      result.update({ quantity, total_price })
       return await result;
     } catch (error) {
       throw {
@@ -681,11 +681,11 @@ let employeeModel = {
       }
     }
   },
-  getManagementById:async (id, trx = null) => {
+  getManagementById: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('management')
-      result.where('management_id',id)
+      result.where('management_id', id)
       result.limit(1)
       return await result;
     } catch (error) {
@@ -695,7 +695,7 @@ let employeeModel = {
       }
     }
   },
-  createCategoryItem:async (data, trx = null) => {
+  createCategoryItem: async (data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('categories')
@@ -708,12 +708,12 @@ let employeeModel = {
       }
     }
   },
-  getCategoryById:async (id, trx = null) => {
+  getCategoryById: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('categories')
-      result.select('id','title_name','category')
-      result.where('management_id',id)
+      result.select('id', 'title_name', 'category')
+      result.where('management_id', id)
       return await result;
     } catch (error) {
       throw {
@@ -722,7 +722,7 @@ let employeeModel = {
       }
     }
   },
-  createAdmin:async (data, trx = null) => {
+  createAdmin: async (data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('admin')
@@ -735,11 +735,11 @@ let employeeModel = {
       }
     }
   },
-  checkgst:async (gst, trx = null) => {
+  checkgst: async (gst, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('admin')
-      result.where("GST",gst)
+      result.where("GST", gst)
       result.limit(1)
       return await result;
     } catch (error) {
@@ -749,7 +749,7 @@ let employeeModel = {
       }
     }
   },
-  addProductModel:async (data, trx = null) => {
+  addProductModel: async (data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('products')
@@ -762,11 +762,11 @@ let employeeModel = {
       }
     }
   },
-  getProductByMngIdModel:async (id, trx = null) => {
+  getProductByMngIdModel: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('products')
-      result.where('management_id',id)
+      result.where('management_id', id)
       return await result;
     } catch (error) {
       throw {
@@ -775,7 +775,7 @@ let employeeModel = {
       }
     }
   },
-  managementPackageModel:async (data, trx = null) => {
+  managementPackageModel: async (data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('management_packages')
@@ -788,13 +788,13 @@ let employeeModel = {
       }
     }
   },
-  getpackageByAdmin:async (id, trx = null) => {
+  getpackageByAdmin: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('admin')
       result.select('team_name')
       result.select('company_size')
-      result.where('id',id)
+      result.where('id', id)
       result.limit(1)
       return await result;
     } catch (error) {
@@ -804,7 +804,7 @@ let employeeModel = {
       }
     }
   },
-  getPackageByCategoryAndSize:async (company,size, trx = null) => {
+  getPackageByCategoryAndSize: async (company, size, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('management_packages')
@@ -816,8 +816,8 @@ let employeeModel = {
       result.select('yearly_standard')
       result.select('yearly_premium')
       result.where({
-        size_type:size,
-        category_type:company
+        size_type: size,
+        category_type: company
       })
       result.limit(1)
       return await result;
@@ -828,18 +828,40 @@ let employeeModel = {
       }
     }
   },
-  addProductImage:async(data,trx=null)=>{
-     let knex = trx != null ? trx : db;
-     try {
-      let result=knex('product_images')
+  addProductImage: async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('product_images')
       result.insert(data)
       return await result;
-     } catch (error) {
-        throw {
+    } catch (error) {
+      throw {
         errorCode: "DB_ERROR",
         message: error.message
       }
-     }
-  }
+    }
+  },
+  getProductImages: async (id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('product_images')
+      result.where('product_id', id)
+      result.orderBy("image_id", "asc");
+      return await result;
+    } catch (error) {
+      throw {
+        errorCode: "DB_ERROR",
+        message: error.message
+      }
+    }
+  },
+  updateProductImage: async (image_id, data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    let result = knex("product_images")
+    result.where("image_id", image_id)
+    result.update(data);
+    return await result;
+  },
+
 };
 module.exports = employeeModel;

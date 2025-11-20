@@ -1746,6 +1746,98 @@ let employeeController = {
                 })
             }
         }
+    },
+    updateProductImage: async (req, res) => {
+        try {
+            const { id } = req.params;
+            let allErrors = [];
+            const oldImages = await employeeModel.getProductImages(id);
+            if (oldImages.length === 0) {
+                throw { error: "VALID_ERROR", message: "No images found for this product" }
+            }
+
+            
+            if (!req.files || req.files.length === 0) {
+                return res.status(422).json({
+                    message: "At least one image is required"
+                });
+            }
+
+            if (req.files.length !== oldImages.length) {
+                return res.status(422).json({
+                    message: `You must upload exactly ${oldImages.length} images`
+                });
+            }
+
+
+            for (let i = 0; i < req.files.length; i++) {
+                const file = req.files[i];
+
+                const valid = fileValidate(
+                    file,
+                    [".jpg", ".jpeg", ".png", ".webp"],
+                    2
+                );
+
+                if (!valid.valid) {
+                    allErrors.push({
+                        field: `images[${i}]`,
+                        message: valid.message
+                    });
+                }
+            }
+
+            let totalSize = 0;
+            for (let i = 0; i < req.files.length; i++) {
+                totalSize += req.files[i].size;
+            }
+
+            if (totalSize > 5 * 1024 * 1024) {
+                allErrors.push({
+                    field: "images",
+                    message: "Total images size must not exceed 5MB"
+                });
+            }
+
+            if (allErrors.length > 0) {
+                return res.status(422).json({ message: allErrors });
+            }
+
+            const adminFolder = "products";
+            const managementFolder = "ManagaementProducts";
+            for (let i = 0; i < req.files.length; i++) {
+                const newFile = req.files[i];
+                // console.log("newFile",newFile)
+                const oldImage = oldImages[i];
+                // console.log("oldImage",oldImage)
+                await copyFile(newFile, adminFolder)
+                await copyFile(newFile, managementFolder)
+                await deleteFile(newFile.path);
+                await deleteFile(`uploads/${adminFolder}/${oldImage.image_url}`)
+                await deleteFile(`uploads/${managementFolder}/${oldImage.image_url}`)
+                await employeeModel.updateProductImage(oldImage.image_id, {
+                    image_url: newFile.filename,
+                    mime_type: newFile.mimetype,
+                    updated_at:moment().format("YYYY-MM-DD HH:mm:ss")
+                });
+
+            }
+            return res.status(200).json({
+                message: "All images updated successfully"
+            });
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+
+
     }
 }
 module.exports = employeeController;

@@ -17,5 +17,6 @@ router.post(
 router.get('/products',employeeController.getProducts);
 router.post('/cart',employeeController.addTocart);
 router.get("/admin/package/:id", employeeController.getPackages);
+router.put('/management/updateImage/:id',fileUpload.array("images", 3),employeeController.updateProductImage)
 
 module.exports=router;
