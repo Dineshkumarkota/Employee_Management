@@ -14,6 +14,7 @@ router.post(
     fileUpload.array("images", 3),
     employeeController.addProductByAdmin
 );
+router.put('/updateImage/:image_id',fileUpload.single('image'),employeeController.updateSingleImage)
 router.get('/products',employeeController.getProducts);
 router.post('/cart',employeeController.addTocart);
 router.get("/admin/package/:id", employeeController.getPackages);

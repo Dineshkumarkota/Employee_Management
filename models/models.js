@@ -862,6 +862,13 @@ let employeeModel = {
     result.update(data);
     return await result;
   },
+  getProductImageById: async (image_id, trx = null) => {
+    let knex = trx != null ? trx : db;
+    const result = knex("product_images")
+    result.where("image_id", image_id)
+    result.limit(1);
+    return await result;
+  }
 
 };
 module.exports = employeeModel;

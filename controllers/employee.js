@@ -1195,7 +1195,7 @@ let employeeController = {
                 message: err.message
             }));
         }
-        if (!req.files || req.files.lenght === 0) {
+        if (!req.files || req.files.length === 0) {
             allErrors.push({
                 field: "images",
                 message: "atlease one image is required"
@@ -1256,15 +1256,7 @@ let employeeController = {
 
             for (let i = 0; i < req.files.length; i++) {
                 const file = req.files[i];
-                await copyFile(file, destFolder)
-
-                    .then(() => { })
-                    .catch(() => {
-                        throw {
-                            errorCode: "API_ERROR",
-                            message: "Error uploading product image",
-                        };
-                    });
+                await copyFile(file, destFolder);
                 await deleteFile(file.path);
                 await employeeModel.addProductImage({
                     product_id: productId,
@@ -1756,7 +1748,7 @@ let employeeController = {
                 throw { error: "VALID_ERROR", message: "No images found for this product" }
             }
 
-            
+
             if (!req.files || req.files.length === 0) {
                 return res.status(422).json({
                     message: "At least one image is required"
@@ -1818,7 +1810,7 @@ let employeeController = {
                 await employeeModel.updateProductImage(oldImage.image_id, {
                     image_url: newFile.filename,
                     mime_type: newFile.mimetype,
-                    updated_at:moment().format("YYYY-MM-DD HH:mm:ss")
+                    updated_at: moment().format("YYYY-MM-DD HH:mm:ss")
                 });
 
             }
@@ -1836,8 +1828,74 @@ let employeeController = {
                 })
             }
         }
+    },
+    updateSingleImage: async (req, res) => {
+        let errorDetails = []
+        let filevalidation;
+        if (req.file) {
+            filevalidation = fileValidate(
+                req.file,
+                [".jpg", ".jpeg", ".png", "webp"],
+                2
+            );
 
+            if (!filevalidation.valid) {
+                errorDetails.push({
+                    field: "image",
+                    message: filevalidation.message,
+                });
+            }
+        }
+        if (!req.file) {
+            errorDetails.push({
+                field: 'image',
+                message: 'Atlest one image is required'
+            })
+        }
+        if (errorDetails.length > 0) {
+            return res.status(422).json({ message: errorDetails })
+        }
+        else {
+            try {
+                const { image_id } = req.params;
+                const oldImage = await employeeModel.getProductImageById(image_id);
+                console.log(oldImage);
+                
+                if (oldImage.length === 0) {
+                    throw { error: "VALID_ERROR", message: "image not found" }
+                }
+                const adminFolder = 'products';
+                const managementFolder = 'ManagaementProducts';
+                await copyFile(req.file, adminFolder);
+                await copyFile(req.file, managementFolder);
+                await deleteFile(req.file.path);
+                // console.log("deleting=>>>>>>", `uploads/${adminFolder}/${oldImage[0].image_url}`);
+                await deleteFile(`uploads/${adminFolder}/${oldImage[0].image_url}`)
+                // console.log("deleting=>>>>>>", `uploads/${adminFolder}/${oldImage[0].image_url}`);
 
+                await deleteFile(`uploads/${managementFolder}/${oldImage[0].image_url}`);
+                await employeeModel.updateProductImage(image_id, {
+                    image_url: req.file.filename,
+                    mime_type: req.file.mimetype,
+                    updated_at: moment().format("YYYY-MM-DD HH:mm:ss")
+                });
+                return res.status(200).json({
+                    message: "Image updated successfully",
+                    image_id,
+                    new_file: req.file.filename
+                });
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
     }
 }
 module.exports = employeeController;
