@@ -1082,15 +1082,14 @@ let employeeModel = {
       throw { errorCode: 'DB_Error', message:"error occured while executing"}
     }
   },
-  addOrderDetails:async (id,data,trx = null) => {
+  addOrderDetails:async (data,trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('order_details')
-      result.where('id',id)
-      result.update(data)
+      result.insert(data)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: error.message}
     }
   },
   updateOrderByGroupId: async (id,data, trx = null) => {
@@ -1129,6 +1128,17 @@ let employeeModel = {
       };
     }
 
+  },
+  addPayOrderDetails:async (id,data,trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('order_details')
+      result.where('id',id)
+      result.update(data)
+      return await result
+    } catch (error) {
+      throw { errorCode: 'DB_Error', message: error.message}
+    }
   }
 };
 module.exports = employeeModel;

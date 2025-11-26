@@ -1635,10 +1635,11 @@ let employeeController = {
             if (vendor.length === 0) {
                 throw { error: "VALID_ERROR", message: "vendor not found" }
             }
+            const creditDays = vendor[0].credit_days
             let total_price = 0;
             for (i = 0; i < orders.length; i++) {
                 const orderData = orders[i];
-                console.log(orderData);
+                // console.log(orderData);
 
                 const { status, total_price_discount } = orderData;
                 if (status === "order has been shipped") {
@@ -1648,14 +1649,25 @@ let employeeController = {
                     throw { error: "API_ERROR", message: "invalid shipment" }
                 }
             }
-            console.log(total_price);
-
-            let payload = {
-                total_price: total_price,
-                delivery_date: moment().format(),
-                group_id
+            // console.log(total_price);
+            if (creditDays < 0) {
+                let payload = {
+                    total_price: total_price,
+                    delivery_date: moment().format(),
+                    group_id,
+                    payment_date: moment().format()
+                }
+                await employeeModel.addOrderDetails(payload);
             }
-            await employeeModel.addOrderDetails(payload);
+            else {
+                let payload = {
+                    total_price: total_price,
+                    delivery_date: moment().format(),
+                    group_id
+                }
+                await employeeModel.addOrderDetails(payload);
+            }
+
             const data = {
                 status: "delivered"
             }
@@ -1713,7 +1725,7 @@ let employeeController = {
             let data = {
                 credit_days: credit_days - daysTaken
             }
-            await employeeModel.addOrderDetails(id, payLoad);
+            await employeeModel.addPayOrderDetails(id, payLoad);
             await employeeModel.updateVendorCredit(vendor_id, data);
             return res.status(200).json({
                 message: "payment successfull"
