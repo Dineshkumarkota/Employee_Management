@@ -1242,6 +1242,7 @@ let employeeController = {
             }
             let { name, price, description, category } = req.body;
             const product = {
+                management_id: admin[0].management_id,
                 admin_id: id,
                 name: name,
                 price: price,
@@ -1296,8 +1297,13 @@ let employeeController = {
     addTocart: async (req, res) => {
         const schema = Joi.object({
             employee_id: Joi.number().required(),
-            product_id: Joi.number().required(),
-            quantity: Joi.number().required()
+            vendor_id: Joi.number().min(1).required(),
+            products: Joi.array().items(
+                Joi.object({
+                    product_id: Joi.number().required(),
+                    quantity: Joi.number().required(),
+                })
+            ).required()
         })
         let validate = schema.validate(req.body, {
             errors: { wrap: { label: false } },
@@ -1310,49 +1316,415 @@ let employeeController = {
                 field: err.context.key,
                 message: err.message
             }));
+            return res.status(422).json({ message: allErrors })
         }
         try {
-            const { employee_id, product_id, quantity } = req.body;
-            // const quantity = req.body.quantity || 1;
-            const product = await employeeModel.getProductById(product_id);
-            if (product.length === 0) {
-                throw { error: "VALID_ERROR", message: "product not found" };
-            }
+            const { employee_id, products, vendor_id } = req.body;
             const emp = await employeeModel.getEmployeeById(employee_id);
             if (emp.length === 0) {
                 throw { error: "VALID_ERROR", message: "Employee not found" };
             }
-            const itemPrice = product[0].price;
-            const totalPrice = itemPrice * quantity
-            const existing = await employeeModel.findCartItem(employee_id, product_id);
-            if (existing.length > 0) {
-                const quant = existing[0].quantity + req.body.quantity;
-                const total_price = quant * itemPrice;
-                let payLoad = {
-                    employee_id,
-                    product_id,
-                    quantity: quant,
-                    total_price: total_price
+            const vendors = await employeeModel.getVendorsByEmpId(employee_id);
+            // console.log(vendors);
+            const created_by = 0;
+            const group_id = Date.now();
+            for (let i = 0; i < products.length; i++) {
+                const productData = products[i];
+                const { product_id, quantity } = productData;
+                const product = await employeeModel.getProductById(product_id);
+                if (product.length === 0) {
+                    throw { error: "VALID_ERROR", message: "Product not found" };
                 }
-                await employeeModel.updateQuantity(payLoad);
-            } else {
-                const payLoad = {
-                    employee_id,
-                    product_id,
-                    quantity,
-                    admin_id: emp[0].admin_id,
-                    status: "cart",
-                    price: itemPrice,
-                    total_price: totalPrice,
-                    created_at: moment().format()
-                }
-                await employeeModel.addToQuantity(payLoad);
-            }
+                const itemPrice = product[0].price;
+                const totalPrice = itemPrice * quantity;
+                const discountRate = vendors[0].discount / 100;
+                const discountAmount = totalPrice * discountRate;
+                const finalPrice = totalPrice - discountAmount;
 
+                const existing = await employeeModel.findCartItem(employee_id, product_id, vendor_id, created_by);
+                if (existing.length > 0) {
+                    const quant = existing[0].quantity + quantity;
+                    const total_price = quant * itemPrice;
+                    const updated_discount = total_price * discountRate;
+                    const updated_final_price = total_price - updated_discount;
+                    let payLoad = {
+                        employee_id,
+                        product_id,
+                        vendor_id,
+                        quantity: quant,
+                        created_by,
+                        group_id: existing[0].group_id,
+                        total_price: total_price,
+                        total_price_discount: updated_final_price
+                    }
+                    await employeeModel.updateQuantity(payLoad);
+                } else {
+                    const payLoad = {
+                        employee_id,
+                        product_id,
+                        quantity,
+                        admin_id: emp[0].admin_id,
+                        status: "cart",
+                        price: itemPrice,
+                        total_price: totalPrice,
+                        created_at: moment().format(),
+                        vendor_id,
+                        group_id,
+                        created_by,
+                        total_price_discount: finalPrice
+                    }
+                    await employeeModel.addToQuantity(payLoad);
+                }
+            }
             return res.status(201).json({ message: "Added to cart" });
         } catch (error) {
             if (error.errorCode === 'VALID_ERROR') {
                 return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    addTocartByVendor: async (req, res) => {
+        const schema = Joi.object({
+            employee_id: Joi.number().required(),
+            vendor_id: Joi.number().min(1).required(),
+            products: Joi.array().items(
+                Joi.object({
+                    product_id: Joi.number().required(),
+                    quantity: Joi.number().required(),
+                })
+            ).required()
+        })
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let allErrors = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ message: allErrors })
+        }
+        try {
+            const { employee_id, products, vendor_id } = req.body;
+            const emp = await employeeModel.getEmployeeById(employee_id);
+            if (emp.length === 0) {
+                throw { error: "VALID_ERROR", message: "Employee not found" };
+            }
+            const vendors = await employeeModel.getVendorsByEmpId(employee_id);
+            // console.log(vendors);
+            const created_by = 1;
+            const group_id = Date.now();
+            for (let i = 0; i < products.length; i++) {
+                const productData = products[i];
+                const { product_id, quantity } = productData;
+                const product = await employeeModel.getProductById(product_id);
+                if (product.length === 0) {
+                    throw { error: "VALID_ERROR", message: "Product not found" };
+                }
+                const itemPrice = product[0].price;
+                const totalPrice = itemPrice * quantity;
+                const discountRate = vendors[0].discount / 100;
+                const discountAmount = totalPrice * discountRate;
+                const finalPrice = totalPrice - discountAmount;
+
+                const existing = await employeeModel.findCartItem(employee_id, product_id, vendor_id, created_by);
+                if (existing.length > 0) {
+                    const quant = existing[0].quantity + quantity;
+                    const total_price = quant * itemPrice;
+                    const updated_discount = total_price * discountRate;
+                    const updated_final_price = total_price - updated_discount;
+                    let payLoad = {
+                        employee_id,
+                        product_id,
+                        vendor_id,
+                        quantity: quant,
+                        created_by,
+                        group_id,
+                        total_price: total_price,
+                        total_price_discount: updated_final_price
+                    }
+                    await employeeModel.updateQuantity(payLoad);
+                } else {
+                    const payLoad = {
+                        employee_id,
+                        product_id,
+                        quantity,
+                        admin_id: emp[0].admin_id,
+                        status: "cart",
+                        price: itemPrice,
+                        total_price: totalPrice,
+                        created_at: moment().format(),
+                        vendor_id,
+                        created_by,
+                        group_id,
+                        total_price_discount: finalPrice
+                    }
+                    await employeeModel.addToQuantity(payLoad);
+                }
+            }
+            return res.status(201).json({ message: "Added to cart" });
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    verifyOrder: async (req, res) => {
+        let formvalidation = Joi.object({
+            status: Joi.string().min(1).max(150).required(),
+            quantity: Joi.number().integer().optional()
+        })
+        let validation = formvalidation.validate(req.body, { errors: { wrap: { label: false } }, abortEarly: false })
+        let errorDetails = []
+        if (validation.error) {
+            errorDetails = validation.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }))
+            return res.status(422).json({ data: errorDetails })
+        } else {
+            try {
+                let { id, verify_id } = req.params
+                const order = await employeeModel.getOrderById(id)
+                if (order.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'order not found' }
+                }
+                if (order[0].status != 'cart') {
+                    throw { errorCode: 'API_ERROR', message: 'accounts team already reacted for this order' }
+                }
+                const vendor_id = order[0].vendor_id
+                const vendor = await employeeModel.getVendorsByEmpId(vendor_id)
+                if (vendor.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'vendor not found' }
+                }
+                let verifier = await employeeModel.getTeamRoleById(verify_id)
+                if (verifier.length == 0 || verifier[0].role_id != 7) {
+                    throw { errorCode: 'API_ERROR', message: 'invalid verifier' }
+                }
+                const product = await employeeModel.getProductById(order[0].product_id)
+                if (product.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'cannot found the product' }
+                }
+                const stock = product[0].stock
+                if (stock >= order[0].quantity) {
+                    const payload = {
+                        status: req.body.status,
+                        verified_by: verify_id
+                    }
+                    await employeeModel.updateOrderById(id, payload)
+                    return res.status(200).json({ message: 'verified succesfully' })
+                } else {
+                    const total_price = req.body.quantity * product[0].price
+                    console.log(total_price);
+
+                    priceAfterDiscount = total_price - (vendor[0].discount / 100) * total_price
+                    console.log(priceAfterDiscount);
+
+                    const payload = {
+                        status: req.body.status,
+                        verified_by: verify_id,
+                        quantity: req.body.quantity,
+                        total_price,
+                        total_price_discount: priceAfterDiscount
+                    }
+                    await employeeModel.updateOrderById(id, payload)
+                    return res.status(200).json({ message: 'verified and updated succesfully' })
+                }
+
+
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else if (error.errorCode === 'API_ERROR') {
+                    return res.status(409).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    dispatchOrder: async (req, res) => {
+        let schema = Joi.object({
+            status: Joi.string().min(1).max(100).required()
+        })
+        let validation = schema.validate(req.body, { errors: { wrap: { label: false } }, abortEarly: false })
+        let errorDetails = []
+        if (validation.error) {
+            errorDetails = validation.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }))
+            return res.status(422).json({ data: errorDetails })
+        }
+        else {
+            try {
+                let { id, dispatch_id } = req.params;
+                const order = await employeeModel.getOrderById(id);
+                if (order.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'order not found' }
+                }
+                if (order[0].status != 'order placed') {
+                    throw { errorCode: 'API_ERROR', message: 'dispatch team already reacted for this order' }
+                }
+                const vendor_id = order[0].vendor_id;
+                const vendor = await employeeModel.getVendorsByEmpId(vendor_id)
+                if (vendor.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'vendor not found' }
+                }
+                const shipment = await employeeModel.getTeamRoleById(dispatch_id);
+                if (shipment.length == 0 || shipment[0].role_id != 8) {
+                    throw { errorCode: 'API_ERROR', message: 'invalid dispatch team' }
+                }
+                const product = await employeeModel.getProductById(order[0].product_id)
+                if (product.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'cannot found the product' }
+                }
+                let payload = {
+                    status: req.body.status,
+                    shipped_by: dispatch_id
+                }
+                await employeeModel.updateOrderById(id, payload);
+                return res.status(200).json({ message: "shipped successfully" })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else if (error.errorCode === 'API_ERROR') {
+                    return res.status(409).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    create_delivery: async (req, res) => {
+        try {
+            let { group_id } = req.params;
+            const orders = await employeeModel.getGroupOrderById(group_id);
+            if (orders.length === 0) {
+                throw { error: "VALID_ERROR", message: "order details not found" }
+            }
+            const vendor_id = orders[0].vendor_id
+            const vendor = await employeeModel.getVendorById(vendor_id);
+            if (vendor.length === 0) {
+                throw { error: "VALID_ERROR", message: "vendor not found" }
+            }
+            let total_price = 0;
+            for (i = 0; i < orders.length; i++) {
+                const orderData = orders[i];
+                console.log(orderData);
+
+                const { status, total_price_discount } = orderData;
+                if (status === "order has been shipped") {
+                    total_price += total_price_discount;
+                }
+                else {
+                    throw { error: "API_ERROR", message: "invalid shipment" }
+                }
+            }
+            console.log(total_price);
+
+            let payload = {
+                total_price: total_price,
+                delivery_date: moment().format(),
+                group_id
+            }
+            await employeeModel.addOrderDetails(payload);
+            const data = {
+                status: "delivered"
+            }
+            await employeeModel.updateOrderByGroupId(group_id, data)
+            return res.status(200).json({
+                message: "order has been delievered"
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else if (error.errorCode === 'API_ERROR') {
+                return res.status(409).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    payment: async (req, res) => {
+        try {
+            let { id, vendor_id } = req.params;
+            const orders = await employeeModel.getOrderDetailsById(id);
+            if (orders.length === 0) {
+                throw { errro: 'VALID_ERROR', message: "order details not found" }
+            }
+            let vendor = await employeeModel.getVendorById(vendor_id);
+            if (vendor.length === 0) {
+                throw { errro: 'VALID_ERROR', message: "vendor not found" }
+            }
+            let credit_days = vendor[0].credit_days;
+
+            const paymentDate = req.body.payment_date;
+            let startDate = new Date(orders[0].delivery_date);
+            // console.log(startDate);
+
+            let endDate = new Date(paymentDate);
+            // console.log(endDate);
+
+            let difference = endDate - startDate;
+            // console.log(difference);
+
+            const daysTaken = Math.floor(difference / (1000 * 24 * 60 * 60))
+            // console.log(daysTaken);
+
+
+            let payLoad = {
+                payment_date: paymentDate,
+                days_taken: daysTaken
+            }
+            let data = {
+                credit_days: credit_days - daysTaken
+            }
+            await employeeModel.addOrderDetails(id, payLoad);
+            await employeeModel.updateVendorCredit(vendor_id, data);
+            return res.status(200).json({
+                message: "payment successfull"
+            })
+        } catch (error) {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else if (error.errorCode === 'API_ERROR') {
+                return res.status(409).json({
                     message: error.message
                 })
             } else {
@@ -1860,7 +2232,7 @@ let employeeController = {
                 const { image_id } = req.params;
                 const oldImage = await employeeModel.getProductImageById(image_id);
                 console.log(oldImage);
-                
+
                 if (oldImage.length === 0) {
                     throw { error: "VALID_ERROR", message: "image not found" }
                 }
@@ -1896,6 +2268,372 @@ let employeeController = {
                 }
             }
         }
+    },
+    createManufacturerTeam: async (req, res) => {
+        const schema = Joi.object({
+            user_name: Joi.string().min(5).max(8).required(),
+            password: Joi.string().min(6).max(10).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!#.%*?&])[A-Za-z\d@$!#.%*?&]+$/).required(),
+            name: Joi.string().min(3).max(10).required(),
+            mobile: Joi.string().min(5).max(10).required(),
+            email: Joi.string().email().required(),
+            address: Joi.string().min(5).max(20).required(),
+            aadhaar: Joi.string().pattern(/^[2-9]{1}[0-9]{3}\s[0-9]{4}\s[0-9]{4}$/).required(),
+            pan: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).required(),
+            role_id: Joi.number().min(1).required(),
+        })
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+
+        let allErrors = [];
+
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: allErrors })
+        }
+        else {
+            try {
+                let { admin_id } = req.params;
+                let admin = await employeeModel.getAdminNameByid(admin_id)
+                if (admin.length === 0) {
+                    throw { error: 'VALID_ERROR', message: "admin not found" }
+                }
+                let createdByValue;
+                if (admin[0].team_name === "Brand Owner") {
+                    createdByValue = 1;
+                }
+                else {
+                    createdByValue = 2;
+                }
+                const existingLogin = await employeeModel.getByUsername(req.body.user_name);
+
+
+                if (existingLogin.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "username already exists." };
+                }
+                const nameExists = await employeeModel.getName(req.body.name);
+
+                if (nameExists.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "name already exists." };
+                }
+                const checkNumber = await employeeModel.checkNumber(req.body.mobile);
+
+                if (checkNumber.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "number already exists." };
+                }
+                const existingEmail = await employeeModel.getByEmailID(req.body.email);
+
+                if (existingEmail.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "Email already exists." };
+                }
+                const existingPan = await employeeModel.checkpanNumber(req.body.pan);
+
+                if (existingPan.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "Pan already exists" }
+                }
+                const existingAadhaar = await employeeModel.checkAadhaar(req.body.aadhaar)
+
+                if (existingAadhaar.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "Aadhaar already exists" }
+                }
+                const hashedPassword = await bcrypt.hash(req.body.password, 10);
+
+
+                let payLoad = {
+                    admin_id: admin_id,
+                    user_name: req.body.user_name,
+                    password: hashedPassword,
+                    name: req.body.name,
+                    mobile: req.body.mobile,
+                    email: req.body.email,
+                    address: req.body.address,
+                    aadhaar: req.body.aadhaar,
+                    pan: req.body.pan,
+                    role_id: req.body.role_id,
+                    created_by: createdByValue
+                }
+                // console.log(payLoad);
+                let result = await employeeModel.uploadManufacturer(payLoad);
+                console.log(result);
+
+                return res.status(200).json({
+                    message: "posted successfully"
+                })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    createProductionTeam: async (req, res) => {
+        const schema = Joi.object({
+            user_name: Joi.string().min(5).max(8).required(),
+            password: Joi.string().min(6).max(10).pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!#.%*?&])[A-Za-z\d@$!#.%*?&]+$/).required(),
+            name: Joi.string().min(3).max(10).required(),
+            mobile: Joi.string().min(5).max(10).required(),
+            email: Joi.string().email().required(),
+            address: Joi.string().min(5).max(20).required(),
+            aadhaar: Joi.string().pattern(/^[2-9]{1}[0-9]{3}\s[0-9]{4}\s[0-9]{4}$/).required(),
+            pan: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).required(),
+
+            role_id: Joi.number().min(1).required(),
+        })
+        // Validate Body
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+
+        let allErrors = [];
+
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: allErrors })
+        }
+        else {
+            try {
+                let { creator_id } = req.params;
+                let creator = await employeeModel.getuserByid(creator_id)
+                if (creator.length === 0) {
+                    throw { error: 'VALID_ERROR', message: "user not found" }
+                }
+                const team_type = await employeeModel.getRoleType(creator.role[0].id);
+                if (team_type[0].id != 1) {
+                    throw { errorCode: 'VALID_ERROR', message: 'only CFO in manufactures can add employee can add employee' }
+                }
+
+                // console.log(creator[0]);
+
+                if (creator.role !== 'CFO' && creator.team_type !== 'manufacturerTeam') {
+                    throw { error: 'VALID_ERROR', message: "only cfo can create production team" }
+                }
+                const existingLogin = await employeeModel.getByUsername(req.body.user_name);
+
+                if (existingLogin.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "username already exists." };
+                }
+                const nameExists = await employeeModel.getName(req.body.name);
+
+                if (nameExists.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "name already exists." };
+                }
+                const checkNumber = await employeeModel.checkNumber(req.body.mobile);
+                if (checkNumber.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "number already exists." };
+                }
+                const existingEmail = await employeeModel.getByEmailID(req.body.email);
+                if (existingEmail.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "Email already exists." };
+                }
+                const existingPan = await employeeModel.checkpanNumber(req.body.pan);
+
+                if (existingPan.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "Pan already exists" }
+                }
+                const existingAadhaar = await employeeModel.checkAadhaar(req.body.aadhaar)
+                if (existingAadhaar.length > 0) {
+                    throw { error: 'VALID_ERROR', message: "Aadhaar already exists" }
+                }
+                const hashedPassword = await bcrypt.hash(req.body.password, 10);
+                let payLoad = {
+                    manufacture_id: creator_id,
+                    user_name: req.body.user_name,
+                    password: hashedPassword,
+                    name: req.body.name,
+                    mobile: req.body.mobile,
+                    email: req.body.email,
+                    address: req.body.address,
+                    aadhaar: req.body.aadhaar,
+                    pan: req.body.pan,
+                    role_id: req.body.role_id,
+                    created_by: 2
+                }
+
+                await employeeModel.uploadManufacturer(payLoad);
+                return res.status(200).json({
+                    message: "posted successfully"
+                })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    createBrandOwnerByManufacture: async (req, res) => {
+        let formvalidation = Joi.object({
+            name: Joi.string().min(1).max(255).required(),
+            company_name: Joi.string().min(1).max(100).required(),
+            company_size: Joi.string().min(1).max(250).valid('small', 'medium', 'large').required(),
+            address: Joi.string().min(1).max(150).required(),
+            GST: Joi.string().min(1).max(100).alphanum().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).required(),
+            shipping_address: Joi.string().min(1).max(150).required(),
+            product_category: Joi.number().integer().required()
+        })
+        let validation = formvalidation.validate(req.body, { errors: { wrap: { label: false } }, abortEarly: false })
+        let errorDetails = []
+        if (validation.error) {
+            errorDetails = validation.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }))
+            return res.status(422).json({ data: errorDetails })
+        } else {
+            try {
+                let { id } = req.params
+                let manufacture = await employeeModel.getManufacture(id)
+                if (manufacture.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'manufacture not found' }
+                }
+                const checkGST = await employeeModel.checkgst(req.body.GST)
+                if (checkGST.length > 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'gst number alredy exist' }
+                }
+                const payload = {
+                    name: req.body.name,
+                    team_name: 'Brand owner',
+                    company_name: req.body.company_name,
+                    company_size: req.body.company_size,
+                    address: req.body.address,
+                    gst: req.body.GST,
+                    shipping_address: req.body.shipping_address,
+                    product_category: req.body.product_category,
+                    manufacture_id: id
+                }
+                await employeeModel.createAdmin(payload)
+                return res.status(200).json({ message: 'Brand owner added succesfully' })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                }
+                else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+
+    },
+    createManufactureProduct: async (req, res) => {
+        let formvalidation = Joi.object({
+            name: Joi.string().min(1).max(255).required(),
+            type: Joi.number().integer().min(1).required(),
+            productDescription: Joi.string().min(1).max(150).required(),
+            price: Joi.number().min(1).required(),
+            applicableTo: Joi.number().integer().valid(1, 2).required()
+        })
+        let validation = formvalidation.validate(req.body, { errors: { wrap: { label: false } }, abortEarly: false })
+        let errorDetails = []
+        if (validation.error) {
+            errorDetails = validation.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }))
+        }
+        if (!req.files || req.files.length == 0) {
+            errorDetails.push({
+                field: 'image',
+                message: 'Atlest one image is required'
+            })
+        } else {
+            let filevalidation;
+            let totalSize = 0;
+            for (let i = 0; i < req.files.length; i++) {
+                filevalidation = fileValidate(req.files[i], [".jpg", ".jpeg", ".png", ".webp"], 2)
+                console.log(filevalidation);
+                totalSize += req.files[i].size
+                if (!filevalidation.valid) {
+                    errorDetails.push({
+                        field: 'image',
+                        message: filevalidation.message
+                    })
+                }
+            }
+            if (totalSize > 5 * 1024 * 1024) {
+                errorDetails.push({
+                    field: "product_image",
+                    message: "Images size should not exceed 5MB"
+                });
+            }
+        }
+        if (errorDetails.length > 0) {
+            return res.status(422).json({ message: errorDetails })
+        }
+        else {
+            try {
+                let { id } = req.params
+                let manufacture = await employeeModel.getManufacture(id)
+
+                if (manufacture.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'manufacture not found' }
+                }
+                const payload = {
+                    name: req.body.name,
+                    category: req.body.type,
+                    description: req.body.productDescription,
+                    manufacture_id: id,
+                    created_by: 2,
+                    price: req.body.price,
+                    applicable_to: req.body.applicableTo,
+                    created_at: moment().format('YYYY-MM-DD HH:mm:ss')
+                }
+                let result = []
+                const product = await employeeModel.addProductModel(payload)
+                if (req.files) {
+                    for (let i = 0; i < req.files.length; i++) {
+                        const item = req.files[i]
+                        const payload = {
+                            image_url: item.filename,
+                            image_type: item.mimetype,
+                            created_at: moment().format('YYYY-MM-DD HH:mm:ss'),
+                            product_id: product
+                        }
+                        let destFolder = 'ManagaementProducts';
+                        await copyFile(req.files[i], destFolder)
+                        const product_image = await empmodels.addProductImage(payload)
+                        result.push(payload)
+                    }
+                    return res.status(200).json({ message: 'product added succesfully' })
+                }
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
     }
+
 }
 module.exports = employeeController;
