@@ -1364,7 +1364,7 @@ let employeeController = {
                         product_id,
                         quantity,
                         admin_id: emp[0].admin_id,
-                        status: "cart",
+                        status: 1,
                         price: itemPrice,
                         total_price: totalPrice,
                         created_at: moment().format(),
@@ -1459,7 +1459,7 @@ let employeeController = {
                         product_id,
                         quantity,
                         admin_id: emp[0].admin_id,
-                        status: "cart",
+                        status: 1,
                         price: itemPrice,
                         total_price: totalPrice,
                         created_at: moment().format(),
@@ -1504,7 +1504,7 @@ let employeeController = {
                 if (order.length == 0) {
                     throw { errorCode: 'VALID_ERROR', message: 'order not found' }
                 }
-                if (order[0].status != 'cart') {
+                if (order[0].status != 1) {
                     throw { errorCode: 'API_ERROR', message: 'accounts team already reacted for this order' }
                 }
                 const vendor_id = order[0].vendor_id
@@ -1526,7 +1526,11 @@ let employeeController = {
                         status: req.body.status,
                         verified_by: verify_id
                     }
-                    await employeeModel.updateOrderById(id, payload)
+                    const data = {
+                        stock: stock - order[0].quantity
+                    }
+                    await employeeModel.updateOrderById(id, payload);
+                    await employeeModel.updateProduct(order[0].product_id, data)
                     return res.status(200).json({ message: 'verified succesfully' })
                 } else {
                     const total_price = req.body.quantity * product[0].price
@@ -1542,7 +1546,11 @@ let employeeController = {
                         total_price,
                         total_price_discount: priceAfterDiscount
                     }
-                    await employeeModel.updateOrderById(id, payload)
+                    const data = {
+                        stock: stock - req.body.quantity
+                    }
+                    await employeeModel.updateOrderById(id, payload);
+                    await employeeModel.updateProduct(order[0].product_id, data)
                     return res.status(200).json({ message: 'verified and updated succesfully' })
                 }
 
@@ -1566,7 +1574,7 @@ let employeeController = {
     },
     dispatchOrder: async (req, res) => {
         let schema = Joi.object({
-            status: Joi.string().min(1).max(100).required()
+            status: Joi.number().min(1).max(10).required()
         })
         let validation = schema.validate(req.body, { errors: { wrap: { label: false } }, abortEarly: false })
         let errorDetails = []
@@ -1584,7 +1592,7 @@ let employeeController = {
                 if (order.length == 0) {
                     throw { errorCode: 'VALID_ERROR', message: 'order not found' }
                 }
-                if (order[0].status != 'order placed') {
+                if (order[0].status != 2) {
                     throw { errorCode: 'API_ERROR', message: 'dispatch team already reacted for this order' }
                 }
                 const vendor_id = order[0].vendor_id;
@@ -1642,7 +1650,7 @@ let employeeController = {
                 // console.log(orderData);
 
                 const { status, total_price_discount } = orderData;
-                if (status === "order has been shipped") {
+                if (status === 3) {
                     total_price += total_price_discount;
                 }
                 else {
@@ -1669,7 +1677,7 @@ let employeeController = {
             }
 
             const data = {
-                status: "delivered"
+                status: 4
             }
             await employeeModel.updateOrderByGroupId(group_id, data)
             return res.status(200).json({
@@ -1744,6 +1752,213 @@ let employeeController = {
                     error: error.message
                 })
             }
+        }
+    },
+    returnItems: async (req, res) => {
+        const schema = Joi.object({
+            order_details_id: Joi.number().min(1).required(),
+            notes: Joi.string().min(5).max(20).required(),
+            return_status: Joi.number().min(1).required(),
+            products: Joi.array().items(
+                Joi.object({
+                    order_id: Joi.number().required(),
+                    quantity: Joi.number().required(),
+                })
+            ).required()
+        })
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let errorDetails = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: errorDetails })
+        }
+        else {
+            try {
+                let { id } = req.params;
+                const vendor = await employeeModel.getVendorById(id);
+                if (vendor.length === 0) {
+                    throw { error: "VALID_ERROR", message: "vendor not found" }
+                }
+                console.log(vendor);
+
+                for (i = 0; i < req.body.products.length; i++) {
+                    const productData = req.body.products[i];
+                    const { order_id, quantity } = productData;
+                    const orders = await employeeModel.getOrderById(order_id);
+                    if (orders.length == 0) {
+                        throw { error: 'VALID_ERROR', message: "order not foudn" }
+                    }
+                    if (quantity > orders[0].quantity) {
+                        throw { error: "VALID_ERROR", message: "return quantity should be less than total quantity" }
+                    }
+                    let payLoad = {
+                        order_id: order_id,
+                        vendor_id: id,
+                        order_details_id: req.body.order_details_id,
+                        quantity: quantity,
+                        return_status: req.body.return_status,
+                        requested_date: moment().format(),
+                        notes: req.body.notes
+                    }
+                    await employeeModel.addReturnDetails(payLoad);
+                }
+                return res.status(200).json({
+                    message: "return requested"
+                })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    verifyReturn: async (req, res) => {
+        const schema = Joi.object({
+            return_status: Joi.number().min(1).required(),
+            dispatch_remarks: Joi.string().min(5).max(20).required(),
+        })
+        let validate = schema.validate(req.body, {
+            errors: { wrap: { label: false } },
+            abortEarly: false
+        });
+        let errorDetails = [];
+        // Collect Joi validation errors
+        if (validate.error) {
+            allErrors = validate.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }));
+            return res.status(422).json({ data: errorDetails })
+        }
+        else {
+            try {
+                let { return_id, dispatch_id } = req.params;
+                const returnDetails = await employeeModel.getReturnOrderDetails(return_id);
+                // console.log(returnDetails);
+                if (returnDetails.length === 0) {
+                    throw { error: "VALID_ERROR", message: "return details not found" }
+                }
+
+                const shipment = await employeeModel.getTeamRoleById(dispatch_id);
+                if (shipment.length == 0 || shipment[0].role_id != 8) {
+                    throw { errorCode: 'API_ERROR', message: 'invalid dispatch team' }
+                }
+
+                const order_id = returnDetails[0].order_id;
+                const orders = await employeeModel.getOrderById(order_id);
+                // console.log(orders);
+                if (orders.length == 0) {
+                    throw { error: 'VALID_ERROR', message: "order not foudn" }
+                }
+
+                const order_details_id = returnDetails[0].order_details_id;
+                const ordersDetails = await employeeModel.getOrderDetailsById(order_details_id);
+                // console.log(ordersDetails);
+                if (ordersDetails.length == 0) {
+                    throw { error: 'VALID_ERROR', message: "orderdetails not found" }
+                }
+
+                const product_id = orders[0].product_id;
+                const products = await employeeModel.getProductById(product_id);
+                // console.log(products);
+                if (products.length == 0) {
+                    throw { error: 'VALID_ERROR', message: "product not found" }
+                }
+                if (req.body.return_status === 2) {
+                    let newQuantity = orders[0].quantity - returnDetails[0].quantity;
+                    let newPrice = orders[0].total_price - (returnDetails[0].quantity * orders[0].price);
+                    // console.log(newPrice);
+                    let data = {
+                        quantity: newQuantity,
+                        total_price_discount: newPrice
+                    }
+                    // console.log(data);
+                    
+                    let newData = {
+                        total_price: ordersDetails[0].total_price - newPrice
+                    }
+                    // console.log(newData);
+                    
+                    let newStock = {
+                        stock: products[0].stock + returnDetails[0].quantity
+                    }
+                    // console.log(newStock);
+                    
+                    let payload = {
+                        return_status: req.body.return_status,
+                        dispatch_remarks: req.body.dispatch_remarks,
+                        aproved_date: moment().format()
+                    }
+                    await employeeModel.updateOrderById(order_id, data)
+                    await employeeModel.updateOrderDetailsById(order_details_id, newData)
+                    await employeeModel.updateProduct(product_id, newStock)
+                    await employeeModel.updateReturn(return_id, payload)
+                }
+                else {
+                    const payload = {
+                        dispatch_remarks: "it seems like dispatch team cancelled your return order",
+                        return_status: req.body.status
+                    }
+                    await employeeModel.updateReturn(return_id, payload)
+                }
+                return res.status(200).json({
+                    message: "dispatcher verified the return"
+                })
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
+            }
+        }
+    },
+    getOrders:async(req,res)=>{
+        try {
+            let {vendor_id}=req.params;
+            console.log(vendor_id);
+            
+            let offset= req.query.offset && req.query.offset != "undefined" ? parseInt(req.query.offset) : 0;
+            let limit= req.query.limit && req.query.limit != "undefined" ? parseInt(req.query.limit) : 10;
+             let status= req.query.status && req.query.status != "undefined" ? parseInt(req.query.status) : 10;
+            const vendor=await employeeModel.getVendorById(vendor_id);
+            if(vendor.length===0){
+                throw{error:"VALID_ERROR",message:"vendor not found"}
+            }
+            let totalProducts=await employeeModel.getTotalProducts(vendor_id);
+            let products=await employeeModel.getOrdersDetailsByVendorId(offset,limit,status,vendor_id);
+            return res.status(200).json({
+                message:"details got successfully",
+                totalProducts:totalProducts[0].total,
+                products
+            })
+        } catch (error) {
+             if (error.errorCode === 'VALID_ERROR') {
+                    return res.status(422).json({
+                        message: error.message
+                    })
+                } else {
+                    return res.status(409).json({
+                        error: error.message
+                    })
+                }
         }
     },
     addCategory: async (req, res) => {

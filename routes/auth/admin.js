@@ -27,5 +27,8 @@ router.post('/productionTeam/add/:creator_id',employeeController.createProductio
 router.post('/createManufacture/:id',employeeController.createBrandOwnerByManufacture)
 router.post('/manufactureProduct/:id',fileUpload.array('images',3),employeeController.createManufactureProduct);
 router.post('/createDelivery/:group_id',employeeController.create_delivery);
-router.put('/createPayment/:id/:vendor_id',employeeController.payment)
+router.put('/createPayment/:id/:vendor_id',employeeController.payment);
+router.post('/addReturn/:id',employeeController.returnItems)
+router.put('/verifyReturn/:return_id/:dispatch_id',employeeController.verifyReturn);
+router.get('/getOrders/:vendor_id',employeeController.getOrders)
 module.exports=router;
