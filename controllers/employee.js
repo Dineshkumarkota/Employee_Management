@@ -1886,17 +1886,17 @@ let employeeController = {
                         total_price_discount: newPrice
                     }
                     // console.log(data);
-                    
+
                     let newData = {
                         total_price: ordersDetails[0].total_price - newPrice
                     }
                     // console.log(newData);
-                    
+
                     let newStock = {
                         stock: products[0].stock + returnDetails[0].quantity
                     }
                     // console.log(newStock);
-                    
+
                     let payload = {
                         return_status: req.body.return_status,
                         dispatch_remarks: req.body.dispatch_remarks,
@@ -1930,28 +1930,87 @@ let employeeController = {
             }
         }
     },
-    getOrders:async(req,res)=>{
+    getOrders: async (req, res) => {
         try {
-            let {vendor_id}=req.params;
-            console.log(vendor_id);
-            
-            let offset= req.query.offset && req.query.offset != "undefined" ? parseInt(req.query.offset) : 0;
-            let limit= req.query.limit && req.query.limit != "undefined" ? parseInt(req.query.limit) : 10;
-             let status= req.query.status && req.query.status != "undefined" ? parseInt(req.query.status) : 10;
-            const vendor=await employeeModel.getVendorById(vendor_id);
-            if(vendor.length===0){
-                throw{error:"VALID_ERROR",message:"vendor not found"}
+            let { vendor_id } = req.params;
+            // console.log(vendor_id);
+
+            let offset = req.query.offset && req.query.offset != "undefined" ? parseInt(req.query.offset) : 0;
+            let limit = req.query.limit && req.query.limit != "undefined" ? parseInt(req.query.limit) : 10;
+            let status = req.query.status && req.query.status != "undefined" ? parseInt(req.query.status) : 10;
+            const vendor = await employeeModel.getVendorById(vendor_id);
+            if (vendor.length === 0) {
+                throw { error: "VALID_ERROR", message: "vendor not found" }
             }
-            let totalProducts=await employeeModel.getTotalProducts(vendor_id);
-            let products=await employeeModel.getOrdersDetailsByVendorId(offset,limit,status,vendor_id);
+            let totalProducts = await employeeModel.getTotalProducts(vendor_id);
+            let products = await employeeModel.getOrdersDetailsByVendorId(offset, limit, status, vendor_id);
             return res.status(200).json({
-                message:"details got successfully",
-                totalProducts:totalProducts[0].total,
+                message: "details got successfully",
+                totalProducts: totalProducts[0].total,
                 products
             })
         } catch (error) {
-             if (error.errorCode === 'VALID_ERROR') {
+            if (error.errorCode === 'VALID_ERROR') {
+                return res.status(422).json({
+                    message: error.message
+                })
+            } else {
+                return res.status(409).json({
+                    error: error.message
+                })
+            }
+        }
+    },
+    addReviews: async (req, res) => {
+        const schema = Joi.object({
+            rating: Joi.number().required(),
+            comment: Joi.string().min(5).max(100).required()
+        })
+        let validation = schema.validate(req.body, { errors: { wrap: { label: false } }, abortEarly: false })
+        let allErrors = []
+        if (validation.error) {
+            errorDetails = validation.error.details.map(err => ({
+                field: err.context.key,
+                message: err.message
+            }))
+            return res.status(422).json({ data: allErrors });
+        }
+        else {
+            try {
+                let { vendor_id, product_id } = req.params;
+                const vendor = await employeeModel.getVendorById(vendor_id)
+                if (vendor.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'vendor not found' }
+                }
+                const product = await employeeModel.getProductById(product_id)
+                if (product.length == 0) {
+                    throw { errorCode: 'VALID_ERROR', message: 'product not found' }
+                }
+                let check = {
+                    vendor_id: vendor_id,
+                    product_id: product_id
+                }
+                const vendorOrder = await employeeModel.getOrder(check)
+                if (vendorOrder.length == 0) {
+                    throw { errorCode: 'API_ERROR', message: 'vendor not purchased this product' }
+                }
+                const payload = {
+                    product_id: product_id,
+                    vendor_id: vendor_id,
+                    rating: req.body.rating,
+                    comment: req.body.comment,
+                    created_at: moment().format('YYYY-MM-DD HH:mm:ss')
+                }
+                await employeeModel.insertReview(payload)
+                return res.status(200).json({ message: 'review added succesfully' })
+
+            } catch (error) {
+                if (error.errorCode === 'VALID_ERROR') {
                     return res.status(422).json({
+                        message: error.message
+                    })
+                } else if (error.errorCode === 'API_ERROR') {
+                    return res.status(409).json({
                         message: error.message
                     })
                 } else {
@@ -1959,6 +2018,7 @@ let employeeController = {
                         error: error.message
                     })
                 }
+            }
         }
     },
     addCategory: async (req, res) => {
@@ -2308,7 +2368,6 @@ let employeeController = {
             const { id } = req.params;
             let admin = await employeeModel.getpackageByAdmin(id);
             // console.log('DMIN',admin);
-
             if (admin.length === 0) {
                 throw { error: 'VALID_ERROR', message: "admin not found" }
             }

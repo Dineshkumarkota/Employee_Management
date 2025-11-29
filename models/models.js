@@ -642,7 +642,7 @@ let employeeModel = {
       }
     }
   },
-  findCartItem: async (employee_id, product_id, vendor_id,created_by, trx = null) => {
+  findCartItem: async (employee_id, product_id, vendor_id, created_by, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('orders')
@@ -1038,7 +1038,7 @@ let employeeModel = {
       result.where('order_id', id)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message:  "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
   updateOrderById: async (id, data, trx = null) => {
@@ -1052,7 +1052,7 @@ let employeeModel = {
       throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  getTeamRoleById:async (id,trx = null) => {
+  getTeamRoleById: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('team_creation_details')
@@ -1060,10 +1060,10 @@ let employeeModel = {
       result.where('user_id', id)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  getVendorById:async (id,trx = null) => {
+  getVendorById: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('vendors')
@@ -1073,32 +1073,32 @@ let employeeModel = {
       result.where('vendor_id', id)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   }
   ,
-  getGroupOrderById:async (id,trx = null) => {
+  getGroupOrderById: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('orders')
-      result.select('total_price','status','product_id','vendor_id',"total_price_discount")
+      result.select('total_price', 'status', 'product_id', 'vendor_id', "total_price_discount")
       result.where('group_id', id)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message:"error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  addOrderDetails:async (data,trx = null) => {
+  addOrderDetails: async (data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('order_details')
       result.insert(data)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  updateOrderByGroupId: async (id,data, trx = null) => {
+  updateOrderByGroupId: async (id, data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('orders')
@@ -1109,7 +1109,7 @@ let employeeModel = {
       throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-   updateOrderDetailsById: async (id,data, trx = null) => {
+  updateOrderDetailsById: async (id, data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('order_details')
@@ -1120,22 +1120,22 @@ let employeeModel = {
       throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  getOrderDetailsById:async (id, trx = null) => {
+  getOrderDetailsById: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('order_details')
-      result.select('delivery_date','total_price','payment_date','days_taken')
+      result.select('delivery_date', 'total_price', 'payment_date', 'days_taken')
       result.where('id', id)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message:"error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-   updateVendorCredit: async (id,data, trx = null) => {
+  updateVendorCredit: async (id, data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       const result = knex('vendors')
-      result.where('vendor_id',id)
+      result.where('vendor_id', id)
       result.update(data);
       return await result;
     } catch (error) {
@@ -1146,39 +1146,39 @@ let employeeModel = {
     }
 
   },
-  addPayOrderDetails:async (id,data,trx = null) => {
+  addPayOrderDetails: async (id, data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('order_details')
-      result.where('id',id)
+      result.where('id', id)
       result.update(data)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  updateProduct:async (id,data,trx = null) => {
+  updateProduct: async (id, data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('products')
-      result.where('product_id',id)
+      result.where('product_id', id)
       result.update(data)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  addReturnDetails:async (data,trx = null) => {
+  addReturnDetails: async (data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('returns')
       result.insert(data)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  getReturnOrderDetails:async (id,trx = null) => {
+  getReturnOrderDetails: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('returns')
@@ -1188,53 +1188,80 @@ let employeeModel = {
       result.select('order_details_id')
       result.select('return_status')
       result.select('quantity')
-      result.where('return_id',id)
+      result.where('return_id', id)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: "error occured while executing"}
+      throw { errorCode: 'DB_Error', message: "error occured while executing" }
     }
   },
-  updateReturn:async (id,data,trx = null) => {
+  updateReturn: async (id, data, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('returns')
-      result.where('return_id',id)
+      result.where('return_id', id)
       result.update(data)
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: error.message}
+      throw { errorCode: 'DB_Error', message: error.message }
     }
   },
-  getOrdersDetailsByVendorId:async (offset,limit,status,id,trx = null) => {
+  getOrdersDetailsByVendorId: async (offset, limit, status, id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('orders')
       result.select('product_id')
       result.select('total_price_discount')
       result.select('status')
-      result.where('vendor_id',id);
- 
-      if (limit > 0 && offset >= 0&&status>=0) {
-        result.where('status',status)
+      result.where('vendor_id', id);
+
+      if (limit > 0 && offset >= 0 && status >= 0) {
+        result.where('status', status)
         result.limit(limit)
         result.offset(offset)
-      
+
       }
-      
+
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: error.message}
+      throw { errorCode: 'DB_Error', message: error.message }
     }
   },
-  getTotalProducts:async (id,trx = null) => {
+  getTotalProducts: async (id, trx = null) => {
     let knex = trx != null ? trx : db;
     try {
       let result = knex('orders')
-      result.where('vendor_id',id)
-     result.count('vendor_id as total')
+      result.where('vendor_id', id)
+      result.count('vendor_id as total')
       return await result
     } catch (error) {
-      throw { errorCode: 'DB_Error', message: error.message}
+      throw { errorCode: 'DB_Error', message: error.message }
+    }
+  },
+  getOrder: async (check, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('orders')
+      result.select('order_id')
+      result.select('quantity') 
+      result.select('status')
+      result.select('product_id')
+      result.select('vendor_id')
+      result.select('shipped_by')
+      result.select('total_price_discount')
+      result.where(check)
+      return await result
+    } catch (error) {
+      throw { errorCode: 'DB_Error', message: 'error occured while executing' }
+    }
+  },
+  insertReview: async (data, trx = null) => {
+    let knex = trx != null ? trx : db;
+    try {
+      let result = knex('reviews')
+      result.insert(data)
+      return await result
+    } catch (error) {
+      throw { errorCode: 'DB_Error', message: 'error occured while executing' }
     }
   }
 };

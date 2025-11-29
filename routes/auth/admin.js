@@ -30,5 +30,6 @@ router.post('/createDelivery/:group_id',employeeController.create_delivery);
 router.put('/createPayment/:id/:vendor_id',employeeController.payment);
 router.post('/addReturn/:id',employeeController.returnItems)
 router.put('/verifyReturn/:return_id/:dispatch_id',employeeController.verifyReturn);
-router.get('/getOrders/:vendor_id',employeeController.getOrders)
+router.get('/getOrders/:vendor_id',employeeController.getOrders);
+router.post('/addReview/vendor_id/product_id',employeeController.addReviews)
 module.exports=router;
